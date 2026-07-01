@@ -1,31 +1,52 @@
-name: Build Android APK
-on: [push, workflow_dispatch]
+name: Budowanie aplikacji Android APK
+
+on:
+  push:
+    branches:
+      - main  # Uruchomi się za każdym razem, gdy wrzucisz zmiany na gałąź main
+  workflow_dispatch: # Pozwala też uruchomić proces ręcznie w zakładce Actions
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-    - name: Checkout Source Code
-      uses: actions/checkout@v3
+    - name: Pobranie kodu z repozytorium
+      uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/node-version@v3
+    - name: Konfiguracja Node.js
+      uses: actions/setup-node@v4
       with:
-        node-version: 18
+        node-version: '20'
 
-    - name: Install Cordova
+    - name: Instalacja Cordova
       run: npm install -g cordova
 
-    - name: Create Android Platform
-      run: |
-        cordova platform add android
-        
-    - name: Build APK
-      run: cordova build android --no-telemetry
-
-    - name: Upload Finished APK
-      uses: actions/upload-artifact@v3
+    - name: Konfiguracja środowiska Java (potrzebne do Androida)
+      uses: actions/setup-java@v4
       with:
-        name: fObywatel-APK
-        path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: Konfiguracja Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Tworzenie projektu Cordova i budowanie APK
+      run: |
+        # Tworzy tymczasowy projekt Cordova
+        cordova create apk-build com.twojadomena.mojaaplikacja MojaAplikacja
+        cd apk-build
         
+        # Kopiuje Twoje pliki HTML/JSON/XML z głównego katalogu repozytorium do folderu www Cordovy
+        cp -r ../* www/ || true
+        
+        # Dodaje platformę Android i buduje niesygnowane APK (debug)
+        cordova platform add android
+        cordova build android --debug
+
+    - name: Zapisanie gotowego pliku APK jako artefakt
+      uses: actions/upload-artifact@v4
+      with:
+        name: aplikacja-apk
+        path: apk-build/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+
